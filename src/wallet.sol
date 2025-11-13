@@ -20,30 +20,27 @@ contract Wallet {
     ////////////////////
     // Errors         //
     ////////////////////
-    error Wallet__InsuficientBalance(); 
+    error Wallet__InsufficientBalance(); 
     
     /////////////////////
     // State variables //
     /////////////////////
     mapping(address => uint256) public balances;
-
+    
     address public owner;
 
     /////////////////////
-    // Modifiers       //
-    /////////////////////
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Only owner can call this function");
-        _;
-    }
-    /////////////////////
     // Functions       //
     /////////////////////
+
     constructor() {
         owner = msg.sender;
     }
 
-    receive() external payable {}
+    receive() external payable { 
+        balances[msg.sender] += msg.value;
+        emit Deposit(msg.sender, msg.value, balances[msg.sender]);
+    }
 
     function deposit() public payable {
         balances[msg.sender] += msg.value;
@@ -51,12 +48,15 @@ contract Wallet {
     }
 
     function withdraw(uint256 amount) public {
-       if (balances[msg.sender] < amount) {
-            revert Wallet__InsuficientBalance();
-       } else {
-            balances[msg.sender] -= amount;
-            payable(msg.sender).transfer(amount);
+       if (balances[msg.sender] < amount) revert Wallet__InsufficientBalance();
+
+
+        balances[msg.sender] -= amount;
+
+        (bool success, ) = msg.sender.call{value: amount}("");
+        require(success, "Transfer failed");
+
+        emit Withdraw(msg.sender, amount, balances[msg.sender]);
        }
-       emit Withdraw(msg.sender, amount, balances[msg.sender]);
-    }
+       
 }
